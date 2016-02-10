@@ -24,34 +24,67 @@
 package org.jboss.ce.mvns2i;
 
 import java.io.File;
-import java.io.FilenameFilter;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author <a href="mailto:ales.justin@jboss.org">Ales Justin</a>
  */
 class MavenLookup implements Lookup {
+
+    private static void addJars(List<URL> urls, File dir) throws Exception {
+        File[] files = dir.listFiles();
+
+        for (File file : files) {
+            if (file.isDirectory()) {
+                addJars(urls, file);
+            } else if (file.isFile() && file.getName().endsWith(".jar")) {
+                urls.add(file.toURI().toURL());
+            }
+        }
+    }
+
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private void addThis(List<URL> urls) throws Exception {
+        final File tempFile = File.createTempFile("marker-", ".tmp");
+        tempFile.deleteOnExit();
+
+        File tempDir = tempFile.getParentFile();
+        File classDir = new File(tempDir, "mvns2i/org/jboss/ce/mvns2i");
+        if (classDir.exists() == false) {
+            classDir.mkdirs();
+        }
+        File classFile = new File(classDir, "MavenUtils.class");
+        try (InputStream is = getThisAsStream()) {
+            Files.copy(is, classFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
+        urls.add(new File(tempDir, "mvns2i/").toURI().toURL());
+    }
+
+    private InputStream getThisAsStream() {
+        ClassLoader cl = getClass().getClassLoader();
+        return cl.getResourceAsStream("org/jboss/ce/mvns2i/MavenUtils.class");
+    }
+
     public String getDeploymentDir(String[] args) throws Exception {
         File mavenLibs = new File(args[1]);
         if (mavenLibs.exists() == false) {
             throw new IllegalArgumentException("No such Maven libs dir: " + mavenLibs);
         }
 
-        File[] jars = mavenLibs.listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.endsWith(".jar");
-            }
-        });
+        List<URL> urls = new ArrayList<>();
+        addJars(urls, new File(mavenLibs, "boot"));
+        addJars(urls, new File(mavenLibs, "lib"));
+        addJars(urls, new File(mavenLibs, "conf"));
+        addThis(urls);
 
-        URL[] urls = new URL[jars.length];
-        for (int i = 0; i < jars.length; i++) {
-            urls[i] = jars[i].toURI().toURL();
-        }
-
-        final ClassLoader cl = new URLClassLoader(urls, MavenLookup.class.getClassLoader());
+        final ClassLoader cl = new URLClassLoader(urls.toArray(new URL[urls.size()]), null); // null parent
         final ClassLoader previous = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(cl);
         try {

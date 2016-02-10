@@ -46,7 +46,7 @@ import org.eclipse.aether.spi.localrepo.LocalRepositoryManagerFactory;
  *
  * @author <a href="mailto:ales.justin@jboss.org">Ales Justin</a>
  */
-class MavenUtils {
+public class MavenUtils {
     private PlexusContainer container;
 
     public MavenUtils() throws Exception {
