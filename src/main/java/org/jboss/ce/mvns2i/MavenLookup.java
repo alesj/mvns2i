@@ -51,25 +51,34 @@ class MavenLookup implements Lookup {
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    private void addThis(List<URL> urls) throws Exception {
+    private void addThis(List<URL> urls, Class<?>... classes) throws Exception {
         final File tempFile = File.createTempFile("marker-", ".tmp");
         tempFile.deleteOnExit();
 
         File tempDir = tempFile.getParentFile();
-        File classDir = new File(tempDir, "mvns2i/org/jboss/ce/mvns2i");
-        if (classDir.exists() == false) {
-            classDir.mkdirs();
+        File pckg = new File(tempDir, "mvns2i/");
+        if (pckg.exists() == false) {
+            pckg.mkdir();
         }
-        File classFile = new File(classDir, "MavenUtils.class");
-        try (InputStream is = getThisAsStream()) {
-            Files.copy(is, classFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+        for (Class<?> clazz : classes) {
+            int p = clazz.getName().lastIndexOf(".");
+            String path = clazz.getName().substring(0, p).replace(".", "/");
+            File classDir = new File(pckg, path);
+            if (classDir.exists() == false) {
+                classDir.mkdirs();
+            }
+            File classFile = new File(classDir, clazz.getSimpleName() + ".class");
+            try (InputStream is = getThisAsStream(clazz)) {
+                Files.copy(is, classFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
         }
-        urls.add(new File(tempDir, "mvns2i/").toURI().toURL());
+        urls.add(pckg.toURI().toURL());
     }
 
-    private InputStream getThisAsStream() {
+    private InputStream getThisAsStream(Class<?> clazz) {
         ClassLoader cl = getClass().getClassLoader();
-        return cl.getResourceAsStream("org/jboss/ce/mvns2i/MavenUtils.class");
+        return cl.getResourceAsStream(clazz.getName().replace(".", "/") + ".class");
     }
 
     public String getDeploymentDir(String[] args) throws Exception {
@@ -82,7 +91,7 @@ class MavenLookup implements Lookup {
         addJars(urls, new File(mavenLibs, "boot"));
         addJars(urls, new File(mavenLibs, "lib"));
         addJars(urls, new File(mavenLibs, "conf"));
-        addThis(urls);
+        addThis(urls, MavenUtils.class, Checker.class);
 
         final ClassLoader cl = new URLClassLoader(urls.toArray(new URL[urls.size()]), null); // null parent
         final ClassLoader previous = Thread.currentThread().getContextClassLoader();

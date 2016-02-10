@@ -24,13 +24,18 @@
 package org.jboss.ce.mvns2i;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.List;
 
+import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.artifact.repository.MavenArtifactRepository;
-import org.apache.maven.project.DefaultProjectBuildingRequest;
+import org.apache.maven.bridge.MavenRepositorySystem;
+import org.apache.maven.execution.DefaultMavenExecutionRequest;
+import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingRequest;
+import org.apache.maven.repository.internal.MavenRepositorySystemUtils;
 import org.codehaus.plexus.ContainerConfiguration;
 import org.codehaus.plexus.DefaultContainerConfiguration;
 import org.codehaus.plexus.DefaultPlexusContainer;
@@ -64,12 +69,15 @@ public class MavenUtils {
 
         File pomFile = new File(projectDir, "pom.xml");
 
-        ProjectBuildingRequest request = new DefaultProjectBuildingRequest();
+        MavenExecutionRequest mer = new DefaultMavenExecutionRequest();
+
+        ProjectBuildingRequest request = mer.getProjectBuildingRequest();
         request.setLocalRepository(new MavenArtifactRepository());
-        DefaultRepositorySystemSession session = new DefaultRepositorySystemSession();
+        DefaultRepositorySystemSession session = MavenRepositorySystemUtils.newSession();
 
         File mvnDir = new File(projectDir, ".m2");
         if (mvnDir.exists() == false) {
+            //noinspection ResultOfMethodCallIgnored
             mvnDir.mkdir();
         }
 
@@ -78,13 +86,19 @@ public class MavenUtils {
         session.setLocalRepositoryManager(localRepositoryManager);
         request.setRepositorySession(session);
 
+        MavenRepositorySystem mrs = create(MavenRepositorySystem.class);
+        ArtifactRepository remoteRepository = mrs.createDefaultRemoteRepository(mer);
+        request.setRemoteRepositories(Collections.singletonList(remoteRepository));
+
         MavenProject project = projectBuilder.build(pomFile, request).getProject();
         List<String> modules = project.getModules();
 
         Checker checker = new Checker();
 
         for (String module : modules) {
-            // TODO
+            File modulePomFile = new File(projectDir, module + "/pom.xml");
+            MavenProject subProject = projectBuilder.build(modulePomFile, request).getProject();
+            checker.addType(subProject.getPackaging(), module);
         }
 
         return checker.result();
