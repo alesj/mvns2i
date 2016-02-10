@@ -97,7 +97,7 @@ class MavenLookup implements Lookup {
         final ClassLoader previous = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(cl);
         try {
-            Class<?> muClass = cl.loadClass("org.jboss.ce.mvns2i.MavenUtils");
+            Class<?> muClass = cl.loadClass(MavenUtils.class.getName());
             Object muInstance = muClass.newInstance();
             Method method = muClass.getMethod("getDeploymentDir", String.class);
             return (String) method.invoke(muInstance, args[0]);
