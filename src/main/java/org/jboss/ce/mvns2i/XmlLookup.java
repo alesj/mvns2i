@@ -39,22 +39,28 @@ class XmlLookup implements Lookup {
 
         Element root = XmlUtils.parseXml(pomXml).getDocumentElement();
 
-        Set<String> modules = new HashSet<>();
+        final Set<String> modules = new HashSet<>();
 
         Element modulesElt = XmlUtils.getChildElement(root, "modules");
-        for (Element moduleElt : XmlUtils.getChildren(modulesElt, "module")) {
-            modules.add(XmlUtils.getBody(moduleElt));
+        if (modulesElt != null) {
+            for (Element moduleElt : XmlUtils.getChildren(modulesElt, "module")) {
+                modules.add(XmlUtils.getBody(moduleElt));
+            }
         }
 
         Element profilesElt = XmlUtils.getChildElement(root, "profiles");
-        for (Element profileElt : XmlUtils.getChildren(profilesElt, "profile")) {
-            String id = XmlUtils.getChildElementBody(profileElt, "id");
-            if ("default".equalsIgnoreCase(id)) {
-                modulesElt = XmlUtils.getChildElement(profileElt, "modules");
-                for (Element moduleElt : XmlUtils.getChildren(modulesElt, "module")) {
-                    modules.add(XmlUtils.getBody(moduleElt));
+        if (profilesElt != null) {
+            for (Element profileElt : XmlUtils.getChildren(profilesElt, "profile")) {
+                String id = XmlUtils.getChildElementBody(profileElt, "id");
+                if ("default".equalsIgnoreCase(id)) {
+                    modulesElt = XmlUtils.getChildElement(profileElt, "modules");
+                    if (modulesElt != null) {
+                        for (Element moduleElt : XmlUtils.getChildren(modulesElt, "module")) {
+                            modules.add(XmlUtils.getBody(moduleElt));
+                        }
+                    }
+                    break;
                 }
-                break;
             }
         }
 
@@ -64,7 +70,7 @@ class XmlLookup implements Lookup {
             File moduleDir = new File(projectDir, module);
             File modulePom = new File(moduleDir, "pom.xml");
             Element modulePomElt = XmlUtils.parseXml(modulePom).getDocumentElement();
-            String packaging = XmlUtils.getChildElementBody(modulePomElt, "packaging");
+            String packaging = XmlUtils.getChildElementBody(modulePomElt, "packaging", true);
             checker.addType(packaging, module);
         }
 
