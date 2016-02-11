@@ -75,7 +75,7 @@ class Checker {
         }
 
         if (result == null) {
-            throw new IllegalStateException(String.format("No default module found - %s, %s, %s", ears, wars, jars));
+            throw new IllegalStateException("No default module found!");
         }
 
         return result;
