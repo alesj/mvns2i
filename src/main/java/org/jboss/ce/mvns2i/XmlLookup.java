@@ -35,7 +35,13 @@ import org.w3c.dom.Element;
 class XmlLookup implements Lookup {
     public String getDeploymentDir(String[] args) throws Exception {
         File projectDir = new File(args[0]);
-        File pomXml = new File(projectDir, "pom.xml");
+        Checker checker = new Checker();
+        recurse(projectDir, checker, "");
+        return checker.result();
+    }
+
+    private void recurse(File parentDir, Checker checker, String prefix) throws Exception {
+        File pomXml = new File(parentDir, "pom.xml");
 
         Element root = XmlUtils.parseXml(pomXml).getDocumentElement();
 
@@ -64,16 +70,16 @@ class XmlLookup implements Lookup {
             }
         }
 
-        Checker checker = new Checker();
-
         for (String module : modules) {
-            File moduleDir = new File(projectDir, module);
+            File moduleDir = new File(parentDir, module);
             File modulePom = new File(moduleDir, "pom.xml");
             Element modulePomElt = XmlUtils.parseXml(modulePom).getDocumentElement();
             String packaging = XmlUtils.getChildElementBody(modulePomElt, "packaging", true);
-            checker.addType(packaging, module);
+            if ("pom".equals(packaging)) {
+                recurse(moduleDir, checker, prefix + module + "/");
+            } else {
+                checker.addType(packaging, prefix + module);
+            }
         }
-
-        return checker.result();
     }
 }

@@ -111,16 +111,24 @@ public class MavenUtils {
         request.setRemoteRepositories(repositories);
 
         MavenProject project = projectBuilder.build(pomFile, request).getProject();
-        List<String> modules = project.getModules();
-
         Checker checker = new Checker();
-
-        for (String module : modules) {
-            File modulePomFile = new File(projectDir, module + "/pom.xml");
-            MavenProject subProject = projectBuilder.build(modulePomFile, request).getProject();
-            checker.addType(subProject.getPackaging(), module);
-        }
+        recurse(projectBuilder, request, checker, new File(projectDir), "", project);
 
         return checker.result();
+    }
+
+    private void recurse(ProjectBuilder projectBuilder, ProjectBuildingRequest request, Checker checker, File parentDir, String prefix, MavenProject project) throws Exception {
+        List<String> modules = project.getModules();
+        for (String module : modules) {
+            File moduleDir = new File(parentDir, module);
+            File modulePomFile = new File(moduleDir, "pom.xml");
+            MavenProject subProject = projectBuilder.build(modulePomFile, request).getProject();
+            String packaging = subProject.getPackaging();
+            if ("pom".equals(packaging)) {
+                recurse(projectBuilder, request, checker, moduleDir, prefix + module + "/", subProject);
+            } else {
+                checker.addType(packaging, prefix + module);
+            }
+        }
     }
 }
