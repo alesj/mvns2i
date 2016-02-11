@@ -119,18 +119,19 @@ public class MavenUtils {
         return checker.result();
     }
 
-    private void recurse(ProjectBuilder projectBuilder, ProjectBuildingRequest request, Checker checker, File parentDir, String prefix, MavenProject project) throws Exception {
-        List<String> modules = project.getModules();
-        for (String module : modules) {
-            File moduleDir = new File(parentDir, module);
-            File modulePomFile = new File(moduleDir, "pom.xml");
-            MavenProject subProject = projectBuilder.build(modulePomFile, request).getProject();
-            String packaging = subProject.getPackaging();
-            if ("pom".equals(packaging)) {
-                recurse(projectBuilder, request, checker, moduleDir, prefix + module + "/", subProject);
-            } else {
-                checker.addType(packaging, prefix + module);
+    private void recurse(ProjectBuilder projectBuilder, ProjectBuildingRequest request, Checker checker, File parentDir, String path, MavenProject project) throws Exception {
+        String packaging = project.getPackaging();
+        if ("pom".equals(packaging)) {
+            List<String> modules = project.getModules();
+            for (String module : modules) {
+                File moduleDir = new File(parentDir, module);
+                File modulePomFile = new File(moduleDir, "pom.xml");
+                MavenProject subProject = projectBuilder.build(modulePomFile, request).getProject();
+                String newPath = (path.length() > 0) ? path + "/" + module : module;
+                recurse(projectBuilder, request, checker, moduleDir, newPath, subProject);
             }
+        } else {
+            checker.addType(packaging, path);
         }
     }
 }

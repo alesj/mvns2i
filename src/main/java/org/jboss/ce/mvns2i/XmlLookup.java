@@ -40,47 +40,46 @@ class XmlLookup implements Lookup {
         return checker.result();
     }
 
-    private void recurse(File parentDir, Checker checker, String prefix) throws Exception {
+    private void recurse(File parentDir, Checker checker, String path) throws Exception {
         File pomXml = new File(parentDir, "pom.xml");
 
         Element root = XmlUtils.parseXml(pomXml).getDocumentElement();
 
-        final Set<String> modules = new HashSet<>();
+        String packaging = XmlUtils.getChildElementBody(root, "packaging", true);
+        if ("pom".equals(packaging)) {
+            final Set<String> modules = new HashSet<>();
 
-        Element modulesElt = XmlUtils.getChildElement(root, "modules");
-        if (modulesElt != null) {
-            for (Element moduleElt : XmlUtils.getChildren(modulesElt, "module")) {
-                modules.add(XmlUtils.getBody(moduleElt));
-            }
-        }
-
-        Element profilesElt = XmlUtils.getChildElement(root, "profiles");
-        if (profilesElt != null) {
-            for (Element profileElt : XmlUtils.getChildren(profilesElt, "profile")) {
-                String id = XmlUtils.getChildElementBody(profileElt, "id");
-                String defaultProfile = checker.getDefaultProfile();
-                if (defaultProfile.equalsIgnoreCase(id)) {
-                    modulesElt = XmlUtils.getChildElement(profileElt, "modules");
-                    if (modulesElt != null) {
-                        for (Element moduleElt : XmlUtils.getChildren(modulesElt, "module")) {
-                            modules.add(XmlUtils.getBody(moduleElt));
-                        }
-                    }
-                    break;
+            Element modulesElt = XmlUtils.getChildElement(root, "modules");
+            if (modulesElt != null) {
+                for (Element moduleElt : XmlUtils.getChildren(modulesElt, "module")) {
+                    modules.add(XmlUtils.getBody(moduleElt));
                 }
             }
-        }
 
-        for (String module : modules) {
-            File moduleDir = new File(parentDir, module);
-            File modulePom = new File(moduleDir, "pom.xml");
-            Element modulePomElt = XmlUtils.parseXml(modulePom).getDocumentElement();
-            String packaging = XmlUtils.getChildElementBody(modulePomElt, "packaging", true);
-            if ("pom".equals(packaging)) {
-                recurse(moduleDir, checker, prefix + module + "/");
-            } else {
-                checker.addType(packaging, prefix + module);
+            Element profilesElt = XmlUtils.getChildElement(root, "profiles");
+            if (profilesElt != null) {
+                for (Element profileElt : XmlUtils.getChildren(profilesElt, "profile")) {
+                    String id = XmlUtils.getChildElementBody(profileElt, "id");
+                    String defaultProfile = checker.getDefaultProfile();
+                    if (defaultProfile.equalsIgnoreCase(id)) {
+                        modulesElt = XmlUtils.getChildElement(profileElt, "modules");
+                        if (modulesElt != null) {
+                            for (Element moduleElt : XmlUtils.getChildren(modulesElt, "module")) {
+                                modules.add(XmlUtils.getBody(moduleElt));
+                            }
+                        }
+                        break;
+                    }
+                }
             }
+
+            for (String module : modules) {
+                File moduleDir = new File(parentDir, module);
+                String newPath = (path.length() > 0) ? path + "/" + module : module;
+                recurse(moduleDir, checker, newPath);
+            }
+        } else {
+            checker.addType(packaging, path);
         }
     }
 }
