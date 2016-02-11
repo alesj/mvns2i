@@ -25,6 +25,7 @@ package org.jboss.ce.mvns2i;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -86,7 +87,9 @@ public class MavenUtils {
         }
         log.info(String.format("Using Maven repository: %s", mvnDir));
 
+        final Checker checker = new Checker();
         ProjectBuildingRequest request = mer.getProjectBuildingRequest();
+        request.setActiveProfileIds(Collections.singletonList(checker.getDefaultProfile()));
 
         MavenArtifactRepository artifactRepository = new MavenArtifactRepository(
             "local",
@@ -111,7 +114,6 @@ public class MavenUtils {
         request.setRemoteRepositories(repositories);
 
         MavenProject project = projectBuilder.build(pomFile, request).getProject();
-        Checker checker = new Checker();
         recurse(projectBuilder, request, checker, new File(projectDir), "", project);
 
         return checker.result();

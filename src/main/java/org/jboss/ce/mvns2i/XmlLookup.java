@@ -58,7 +58,8 @@ class XmlLookup implements Lookup {
         if (profilesElt != null) {
             for (Element profileElt : XmlUtils.getChildren(profilesElt, "profile")) {
                 String id = XmlUtils.getChildElementBody(profileElt, "id");
-                if ("default".equalsIgnoreCase(id)) {
+                String defaultProfile = checker.getDefaultProfile();
+                if (defaultProfile.equalsIgnoreCase(id)) {
                     modulesElt = XmlUtils.getChildElement(profileElt, "modules");
                     if (modulesElt != null) {
                         for (Element moduleElt : XmlUtils.getChildren(modulesElt, "module")) {

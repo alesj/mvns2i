@@ -32,9 +32,15 @@ import java.util.Set;
  * @author <a href="mailto:ales.justin@jboss.org">Ales Justin</a>
  */
 class Checker {
+    private final String defaultProfile = System.getProperty("profile", "default");
+
     private Set<Map.Entry<String, String>> ears = new HashSet<>();
     private Set<Map.Entry<String, String>> wars = new HashSet<>();
     private Set<Map.Entry<String, String>> jars = new HashSet<>();
+
+    public String getDefaultProfile() {
+        return defaultProfile;
+    }
 
     public void addType(String type, String module) {
         Map.Entry<String, String> entry = new AbstractMap.SimpleEntry<>(module, type);
