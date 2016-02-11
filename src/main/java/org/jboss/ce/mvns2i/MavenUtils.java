@@ -24,11 +24,14 @@
 package org.jboss.ce.mvns2i;
 
 import java.io.File;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
 import org.apache.maven.artifact.repository.ArtifactRepository;
+import org.apache.maven.artifact.repository.ArtifactRepositoryPolicy;
 import org.apache.maven.artifact.repository.MavenArtifactRepository;
+import org.apache.maven.artifact.repository.layout.ArtifactRepositoryLayout;
 import org.apache.maven.bridge.MavenRepositorySystem;
 import org.apache.maven.execution.DefaultMavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionRequest;
@@ -47,11 +50,10 @@ import org.eclipse.aether.repository.LocalRepositoryManager;
 import org.eclipse.aether.spi.localrepo.LocalRepositoryManagerFactory;
 
 /**
- * TODO -- still needs impl
- *
  * @author <a href="mailto:ales.justin@jboss.org">Ales Justin</a>
  */
 public class MavenUtils {
+    private static final Logger log = Logger.getLogger(MavenUtils.class.getName());
     private PlexusContainer container;
 
     public MavenUtils() throws Exception {
@@ -71,15 +73,32 @@ public class MavenUtils {
 
         MavenExecutionRequest mer = new DefaultMavenExecutionRequest();
 
-        ProjectBuildingRequest request = mer.getProjectBuildingRequest();
-        request.setLocalRepository(new MavenArtifactRepository());
-        DefaultRepositorySystemSession session = MavenRepositorySystemUtils.newSession();
-
-        File mvnDir = new File(projectDir, ".m2");
+        File mvnDir;
+        String m2dir = System.getProperty("maven.repo");
+        if (m2dir != null) {
+            mvnDir = new File(m2dir);
+        } else {
+            mvnDir = new File(System.getProperty("user.home"), ".m2/repository");
+        }
         if (mvnDir.exists() == false) {
             //noinspection ResultOfMethodCallIgnored
-            mvnDir.mkdir();
+            mvnDir.mkdirs();
         }
+        log.info(String.format("Using Maven repository: %s", mvnDir));
+
+        ProjectBuildingRequest request = mer.getProjectBuildingRequest();
+
+        MavenArtifactRepository artifactRepository = new MavenArtifactRepository(
+            "local",
+            mvnDir.toURI().toString(),
+            create(ArtifactRepositoryLayout.class),
+            new ArtifactRepositoryPolicy(),
+            new ArtifactRepositoryPolicy()
+        );
+        request.setLocalRepository(artifactRepository);
+
+        DefaultRepositorySystemSession session = MavenRepositorySystemUtils.newSession();
+        session.setOffline(!Boolean.getBoolean("online")); // use offline by default
 
         LocalRepository localRepository = new LocalRepository(mvnDir);
         LocalRepositoryManager localRepositoryManager = create(LocalRepositoryManagerFactory.class).newInstance(session, localRepository);
@@ -88,7 +107,8 @@ public class MavenUtils {
 
         MavenRepositorySystem mrs = create(MavenRepositorySystem.class);
         ArtifactRepository remoteRepository = mrs.createDefaultRemoteRepository(mer);
-        request.setRemoteRepositories(Collections.singletonList(remoteRepository));
+        List<ArtifactRepository> repositories = Arrays.asList(artifactRepository, remoteRepository);
+        request.setRemoteRepositories(repositories);
 
         MavenProject project = projectBuilder.build(pomFile, request).getProject();
         List<String> modules = project.getModules();
